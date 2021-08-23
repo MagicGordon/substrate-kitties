@@ -281,7 +281,7 @@ parameter_types! {
 }
 
 impl pallet_kitties::Config for Runtime {
-	// type KittyIndex = u32;
+	type KittyIndex = u32;
 	type Event = Event;
 	type Randomness = RandomnessCollectiveFlip;
 	type Currency = Balances;

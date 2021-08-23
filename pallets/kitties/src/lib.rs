@@ -14,24 +14,24 @@ pub mod pallet {
     use sp_io::hashing::blake2_128;
 
     // use parity_scale_codec::{Encode, Decode};
-    // use sp_std::ops::Add;
+    use sp_std::ops::Add;
 
     // use sp_runtime::print;
     // use sp_runtime::traits::Zero;
 
-    // use sp_std::fmt::Debug;
-    // use sp_runtime::{
-    //     traits::{
-    //         MaybeDisplay, AtLeast32BitUnsigned, Bounded, MaybeMallocSizeOf
-    //     }
-    // };
+    use sp_std::fmt::Debug;
+    use sp_runtime::{
+        traits::{
+            MaybeDisplay, AtLeast32BitUnsigned, Bounded, MaybeMallocSizeOf
+        }
+    };
 
     type BalanceOf<T> = <<T as Config>::Currency as Currency<<T as frame_system::Config>::AccountId>>::Balance;
 
     #[derive(Encode, Decode)]
     pub struct Kitty(pub [u8; 16]);
 
-    type KittyIndex = u32;
+    // type KittyIndex = u32;
 
     #[pallet::config]
     pub trait Config: frame_system::Config {
@@ -40,12 +40,12 @@ pub mod pallet {
         type Randomness: Randomness<Self::Hash, Self::BlockNumber>;
         type ValueBase: Get<BalanceOf<Self>>;
         type Currency: Currency<Self::AccountId> + ReservableCurrency<Self::AccountId>;
-        //Add<u32>  + Parameter + Member + Eq + PartialEq + Ord + PartialOrd + Default + Copy + codec::EncodeLike
-        // type KittyIndex: 
-        // // Parameter + Member + Eq + PartialEq + Ord + PartialOrd + Default + Copy;
-        // Parameter + Member + MaybeSerializeDeserialize + Debug + MaybeDisplay +
-        //     AtLeast32BitUnsigned + Default + Bounded + Copy + sp_std::hash::Hash +
-        //     sp_std::str::FromStr + MaybeMallocSizeOf + Ord + PartialOrd + Eq + PartialEq + Add<u32> + codec::EncodeLike; 
+        // Add<u32>  + Parameter + Member + Eq + PartialEq + Ord + PartialOrd + Default + Copy + codec::EncodeLike
+        type KittyIndex: 
+        // Parameter + Member + Eq + PartialEq + Ord + PartialOrd + Default + Copy;
+        Parameter + Member + MaybeSerializeDeserialize + Debug + MaybeDisplay +
+            AtLeast32BitUnsigned + Default + Bounded + Copy + sp_std::hash::Hash +
+            sp_std::str::FromStr + MaybeMallocSizeOf + Ord + PartialOrd + Eq + PartialEq + Add<u32> + codec::EncodeLike; 
     }
 
     #[pallet::pallet]
@@ -56,8 +56,8 @@ pub mod pallet {
     #[pallet::metadata(T::AccountId = "AccountId")]
     #[pallet::generate_deposit(pub(super) fn deposit_event)]
     pub enum Event<T: Config> {
-        KittiesCreate(T::AccountId, KittyIndex),
-        KittyTransfer(T::AccountId, T::AccountId, KittyIndex),
+        KittiesCreate(T::AccountId, T::KittyIndex),
+        KittyTransfer(T::AccountId, T::AccountId, T::KittyIndex),
     }
 
     #[pallet::storage]
@@ -66,11 +66,11 @@ pub mod pallet {
     
     #[pallet::storage]
 	#[pallet::getter(fn kitties)]
-    pub type Kitties<T: Config> = StorageMap<_, Blake2_128Concat, KittyIndex, Option<Kitty>, ValueQuery>;
+    pub type Kitties<T: Config> = StorageMap<_, Blake2_128Concat, T::KittyIndex, Option<Kitty>, ValueQuery>;
     
     #[pallet::storage]
 	#[pallet::getter(fn owner)]
-	pub type Owner<T: Config> = StorageMap<_, Blake2_128Concat, KittyIndex, Option<T::AccountId>, ValueQuery>;
+	pub type Owner<T: Config> = StorageMap<_, Blake2_128Concat, T::KittyIndex, Option<T::AccountId>, ValueQuery>;
 
     #[pallet::error]
     pub enum Error<T> {
@@ -115,7 +115,7 @@ pub mod pallet {
         }
         
         #[pallet::weight(0)]
-        pub fn transfer(origin: OriginFor<T>, new_owner: T::AccountId, kitty_id: KittyIndex) -> DispatchResult {
+        pub fn transfer(origin: OriginFor<T>, new_owner: T::AccountId, kitty_id: T::KittyIndex) -> DispatchResult {
             let who = ensure_signed(origin)?;
             ensure!(Some(who.clone()) == Owner::<T>::get(kitty_id), Error::<T>::NotOwner);
             Owner::<T>::insert(kitty_id, Some(new_owner.clone()));
@@ -124,7 +124,7 @@ pub mod pallet {
         }
 
         #[pallet::weight(0)]
-        pub fn breed(origin: OriginFor<T>, kitty_id_1: KittyIndex, kitty_id_2: KittyIndex) -> DispatchResult {
+        pub fn breed(origin: OriginFor<T>, kitty_id_1: T::KittyIndex, kitty_id_2: T::KittyIndex) -> DispatchResult {
             let who = ensure_signed(origin)?;
             ensure!(kitty_id_1 != kitty_id_2, Error::<T>::SameParentIndex);
             let kitty1 = Self::kitties(kitty_id_1).ok_or(Error::<T>::InvalidKittyIndex)?;
@@ -164,7 +164,7 @@ pub mod pallet {
         }
 
         #[pallet::weight(0)]
-        pub fn buy(origin: OriginFor<T>, kitty_id: KittyIndex) -> DispatchResult {
+        pub fn buy(origin: OriginFor<T>, kitty_id: T::KittyIndex) -> DispatchResult {
             let who = ensure_signed(origin)?;
             let _kitty = Self::kitties(kitty_id).ok_or(Error::<T>::InvalidKittyIndex)?;
             let to = Owner::<T>::get(kitty_id).ok_or(Error::<T>::InvalidKittyIndex)?;
@@ -176,8 +176,8 @@ pub mod pallet {
         }
 
         #[pallet::weight(0)]
-        pub fn sell(origin: OriginFor<T>, kitty_id: KittyIndex) -> DispatchResult {
-            // let who = ensure_signed(origin)?;
+        pub fn sell(origin: OriginFor<T>, kitty_id: T::KittyIndex, buyer: T::AccountI) -> DispatchResult {
+            let who = ensure_signed(origin)?;
             // let _ = Self::kitties(kitty_id).ok_or(Error::<T>::InvalidKittyIndex)?;
             // let to = Owner::<T>::get(kitty_id).ok_or(Error::<T>::InvalidKittyIndex)?;
             // // ensure!(who == to, Error::<T>::ClaimNotExist);
@@ -203,7 +203,7 @@ pub mod pallet {
         fn create_kitty(who: &T::AccountId, dna: &[u8; 16]) -> Result<(), Error<T>> {
             let kitty_id = match Self::kitties_count(){
                 Some(id) => {
-                    ensure!(id != KittyIndex::max_value(), Error::<T>::KittiesCountOverflow);
+                    ensure!(id != T::KittyIndex::max_value(), Error::<T>::KittiesCountOverflow);
                     id
                 },
                 None => {
