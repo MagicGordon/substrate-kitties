@@ -5,10 +5,19 @@ pub use pallet::*;
 
 #[frame_support::pallet]
 pub mod pallet {
-    use frame_support::{dispatch::DispatchResult, pallet_prelude::*, traits::{Randomness, Currency, ReservableCurrency}};
+    use frame_support::{
+        dispatch::DispatchResult, pallet_prelude::*, 
+        traits::{Randomness, Currency, ReservableCurrency, ExistenceRequirement}
+    };
     use frame_system::pallet_prelude::*;
     use codec::{Encode, Decode};
     use sp_io::hashing::blake2_128;
+
+    // use parity_scale_codec::{Encode, Decode};
+    // use sp_std::ops::Add;
+
+    // use sp_runtime::print;
+    // use sp_runtime::traits::Zero;
 
     // use sp_std::fmt::Debug;
     // use sp_runtime::{
@@ -26,15 +35,17 @@ pub mod pallet {
 
     #[pallet::config]
     pub trait Config: frame_system::Config {
+        // type KittyIndex: Add<u32> + codec::EncodeLike + codec::WrapperTypeDecode;
         type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
         type Randomness: Randomness<Self::Hash, Self::BlockNumber>;
         type ValueBase: Get<BalanceOf<Self>>;
         type Currency: Currency<Self::AccountId> + ReservableCurrency<Self::AccountId>;
+        //Add<u32>  + Parameter + Member + Eq + PartialEq + Ord + PartialOrd + Default + Copy + codec::EncodeLike
         // type KittyIndex: 
         // // Parameter + Member + Eq + PartialEq + Ord + PartialOrd + Default + Copy;
         // Parameter + Member + MaybeSerializeDeserialize + Debug + MaybeDisplay +
         //     AtLeast32BitUnsigned + Default + Bounded + Copy + sp_std::hash::Hash +
-        //     sp_std::str::FromStr + MaybeMallocSizeOf + Ord + PartialOrd + Eq + PartialEq; 
+        //     sp_std::str::FromStr + MaybeMallocSizeOf + Ord + PartialOrd + Eq + PartialEq + Add<u32> + codec::EncodeLike; 
     }
 
     #[pallet::pallet]
@@ -75,27 +86,30 @@ pub mod pallet {
         #[pallet::weight(0)]
         pub fn create(origin: OriginFor<T>) -> DispatchResult {
             let who = ensure_signed(origin)?;
-            let kitty_id = match Self::kitties_count(){
-                Some(id) => {
-                    ensure!(id != KittyIndex::max_value(), Error::<T>::KittiesCountOverflow);
-                    id
-                },
-                None => {
-                    1
-                }
-            };
+            // let kitty_id = match Self::kitties_count(){
+            //     Some(id) => {
+            //         ensure!(id != KittyIndex::max_value(), Error::<T>::KittiesCountOverflow);
+            //         id
+            //     },
+            //     None => {
+            //         1
+            //     }
+            // };
 
             let dna = Self::random_value(&who);
 
-            Kitties::<T>::insert(kitty_id, Some(Kitty(dna)));
+            // Kitties::<T>::insert(kitty_id, Some(Kitty(dna)));
 
-            Owner::<T>::insert(kitty_id, Some(who.clone()));
+            // Owner::<T>::insert(kitty_id, Some(who.clone()));
 
-            KittiesCount::<T>::put(kitty_id + 1);
+            // KittiesCount::<T>::put(kitty_id + 1);
 
+            // T::Currency::reserve(&who, T::ValueBase::get()).map_err(|_| Error::<T>::CreateKittiesReserveFailed)?;
+
+            // Self::deposit_event(Event::KittiesCreate(who.clone(), kitty_id));
+
+            Self::create_kitty(&who, &dna)?;
             T::Currency::reserve(&who, T::ValueBase::get()).map_err(|_| Error::<T>::CreateKittiesReserveFailed)?;
-
-            Self::deposit_event(Event::KittiesCreate(who.clone(), kitty_id));
 
             Ok(())
         }
@@ -116,15 +130,15 @@ pub mod pallet {
             let kitty1 = Self::kitties(kitty_id_1).ok_or(Error::<T>::InvalidKittyIndex)?;
             let kitty2 = Self::kitties(kitty_id_2).ok_or(Error::<T>::InvalidKittyIndex)?;
 
-            let kitty_id = match Self::kitties_count(){
-                Some(id) => {
-                    ensure!(id != KittyIndex::max_value(), Error::<T>::KittiesCountOverflow);
-                    id
-                },
-                None => {
-                    1
-                }
-            };
+            // let kitty_id = match Self::kitties_count(){
+            //     Some(id) => {
+            //         ensure!(id != KittyIndex::max_value(), Error::<T>::KittiesCountOverflow);
+            //         id
+            //     },
+            //     None => {
+            //         1
+            //     }
+            // };
 
             let dna_1 = kitty1.0;
             let dna_2 = kitty2.0;
@@ -136,14 +150,40 @@ pub mod pallet {
                 new_dna[i] = (selector[i] & dna_1[i]) | (!selector[i] & dna_2[i]);
             }
 
-            Kitties::<T>::insert(kitty_id, Some(Kitty(new_dna)));
+            // Kitties::<T>::insert(kitty_id, Some(Kitty(new_dna)));
 
+            // Owner::<T>::insert(kitty_id, Some(who.clone()));
+
+            // KittiesCount::<T>::put(kitty_id + 1);
+
+            // Self::deposit_event(Event::KittiesCreate(who, kitty_id));
+
+            Self::create_kitty(&who, &new_dna)?;
+
+            Ok(())
+        }
+
+        #[pallet::weight(0)]
+        pub fn buy(origin: OriginFor<T>, kitty_id: KittyIndex) -> DispatchResult {
+            let who = ensure_signed(origin)?;
+            let _kitty = Self::kitties(kitty_id).ok_or(Error::<T>::InvalidKittyIndex)?;
+            let to = Owner::<T>::get(kitty_id).ok_or(Error::<T>::InvalidKittyIndex)?;
+            // ensure!(who == to, Error::<T>::ClaimNotExist);
             Owner::<T>::insert(kitty_id, Some(who.clone()));
+            T::Currency::transfer(&who, &to, T::ValueBase::get(), ExistenceRequirement::AllowDeath)?;
+            T::Currency::unreserve(&to, T::ValueBase::get());
+            Ok(())
+        }
 
-            KittiesCount::<T>::put(kitty_id + 1);
-
-            Self::deposit_event(Event::KittiesCreate(who, kitty_id));
-
+        #[pallet::weight(0)]
+        pub fn sell(origin: OriginFor<T>, kitty_id: KittyIndex) -> DispatchResult {
+            // let who = ensure_signed(origin)?;
+            // let _ = Self::kitties(kitty_id).ok_or(Error::<T>::InvalidKittyIndex)?;
+            // let to = Owner::<T>::get(kitty_id).ok_or(Error::<T>::InvalidKittyIndex)?;
+            // // ensure!(who == to, Error::<T>::ClaimNotExist);
+            // Owner::<T>::remove(kitty_id);
+            // T::Currency::transfer(&who, &to, T::ValueBase::get(), ExistenceRequirement::AllowDeath)?;
+            // T::Currency::unreserve(&to, T::ValueBase::get());
             Ok(())
         }
     }
@@ -160,16 +200,26 @@ pub mod pallet {
             payload.using_encoded(blake2_128)
         }
 
-        fn get_kitty_id() -> Result<KittyIndex, Error<T>> {
-            match Self::kitties_count(){
+        fn create_kitty(who: &T::AccountId, dna: &[u8; 16]) -> Result<(), Error<T>> {
+            let kitty_id = match Self::kitties_count(){
                 Some(id) => {
                     ensure!(id != KittyIndex::max_value(), Error::<T>::KittiesCountOverflow);
-                    Ok(id)
+                    id
                 },
                 None => {
-                    Ok(1)
+                    1
                 }
-            }
+            };
+
+            Kitties::<T>::insert(kitty_id, Some(Kitty(*dna)));
+
+            Owner::<T>::insert(kitty_id, Some(who.clone()));
+
+            KittiesCount::<T>::put(kitty_id + 1);
+
+            Self::deposit_event(Event::KittiesCreate(who.clone(), kitty_id));
+
+            Ok(())
         }
 
     }

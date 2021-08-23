@@ -277,10 +277,11 @@ impl pallet_template::Config for Runtime {
 }
 
 parameter_types! {
-	pub const ValueBase: Balance = 1;
+	pub const ValueBase: Balance = 100 * 1_000 * 1_000_000_000;
 }
 
 impl pallet_kitties::Config for Runtime {
+	// type KittyIndex = u32;
 	type Event = Event;
 	type Randomness = RandomnessCollectiveFlip;
 	type Currency = Balances;
