@@ -1,13 +1,5 @@
-use crate::{Error, Kitties, KittiesCount, Owner, mock::*, self as pallet_balances};
+use crate::{Error, mock::*};
 use frame_support::{assert_ok, assert_noop};
-
-fn events() -> Vec<Event> {
-	let evt = System::events().into_iter().map(|evt| evt.event).collect::<Vec<_>>();
-
-	System::reset_events();
-
-	evt
-}
 
 fn last_event() -> Event {
 	System::events().pop().expect("Event expected").event
@@ -29,13 +21,7 @@ fn create_works() {
 			<Test as super::Config>::Currency::reserved_balance(1),
 			100000000000000
 		);
-		// assert_eq!(
-		// 	events(),
-		// 	[
-		// 		// <Test as super::Config>::Event::System(Balance::Event::Reserved(1, 100000000000000)),
-		// 		<Test as super::Config>::Event::KittiesModule(crate::Event::KittiesCreate(1, 1)),
-		// 	]
-		// );
+		
 		assert_eq!(
 			last_event(),
 			<Test as super::Config>::Event::KittiesModule(crate::Event::KittiesCreate(1, 1))
